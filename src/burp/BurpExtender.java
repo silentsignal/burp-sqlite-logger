@@ -23,6 +23,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab, IHttpLi
 	private PreparedStatement insertStmt;
 	private JTable table = new JTable();
 	private JLabel lbDbFile = new JLabel("(no database opened yet)");
+	private JTextArea filters = new JTextArea();
 	private OutputStream stderr;
 
 	@Override
@@ -34,6 +35,12 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab, IHttpLi
 		this.callbacks = callbacks;
 		this.stderr = callbacks.getStderr();
 		JPanel toolbar = new JPanel();
+		toolbar.setLayout(new BoxLayout(toolbar, BoxLayout.PAGE_AXIS));
+
+		// ---------- database controls ---------
+
+		JPanel databaseControls = new JPanel();
+		databaseControls.setLayout(new BoxLayout(databaseControls, BoxLayout.LINE_AXIS));
 		JButton btnDbSelect = new JButton("Select database");
 		btnDbSelect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
@@ -49,7 +56,6 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab, IHttpLi
 				}
 			}
 		});
-		toolbar.setLayout(new BoxLayout(toolbar, BoxLayout.LINE_AXIS));
 		JButton btnRefresh = new JButton("Refresh table");
 		btnRefresh.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
@@ -58,13 +64,28 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab, IHttpLi
 				}
 			}
 		});
-		toolbar.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-		toolbar.add(new JLabel("Database file: "));
-		toolbar.add(lbDbFile);
-		toolbar.add(Box.createRigidArea(new Dimension(10, 0)));
-		toolbar.add(btnDbSelect);
-		toolbar.add(Box.createRigidArea(new Dimension(10, 0)));
-		toolbar.add(btnRefresh);
+		databaseControls.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+		databaseControls.add(new JLabel("Database file: "));
+		databaseControls.add(lbDbFile);
+		databaseControls.add(Box.createRigidArea(new Dimension(10, 0)));
+		databaseControls.add(btnDbSelect);
+		databaseControls.add(Box.createRigidArea(new Dimension(10, 0)));
+		databaseControls.add(btnRefresh);
+
+		// -------- filters controls --------
+
+		JPanel filtersControls = new JPanel();
+		filtersControls.setLayout(new BoxLayout(filtersControls, BoxLayout.LINE_AXIS));
+		filtersControls.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+		filtersControls.add(new JLabel("Filters: "));
+		filtersControls.add(filters);
+		filters.setRows(3);
+
+		// --------- parent toolbar and main window --------
+
+		toolbar.add(databaseControls);
+		toolbar.add(filtersControls);
+
 		setLayout(new BorderLayout());
 		add(toolbar, BorderLayout.NORTH);
 		add(new JScrollPane(table), BorderLayout.CENTER);
@@ -120,8 +141,9 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab, IHttpLi
 
 	void refreshTable() throws SQLException {
 		ArrayList<Integer> idList = new ArrayList<>();
+		String f = filters.getText();
 		try (ResultSet ids = conn.createStatement().executeQuery(
-				"SELECT id FROM messages")) {
+				"SELECT id FROM messages" + (f.isEmpty() ? "" : " WHERE " + f))) {
 			while (ids.next()) idList.add(ids.getInt(1));
 		}
 		idList.trimToSize();
