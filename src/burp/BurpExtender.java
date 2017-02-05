@@ -28,6 +28,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	private JTextArea filters = new JTextArea();
 	private OutputStream stderr;
 	private IMessageEditor requestViewer, responseViewer;
+	private JButton btnRefresh = new JButton("Refresh table");
 
 	@Override
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks) {
@@ -54,12 +55,14 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 					boolean existed = f.exists();
 					connectToDatabase(f.getPath());
 					if (existed) refreshTable();
+					btnRefresh.setEnabled(true);
+					filters.setEnabled(true);
 				} catch (Exception e) {
 					reportError(e, "Couldn't open database");
 				}
 			}
 		});
-		JButton btnRefresh = new JButton("Refresh table");
+		btnRefresh.setEnabled(false);
 		btnRefresh.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
 				try { refreshTable(); } catch (SQLException e) {
@@ -82,6 +85,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		filtersControls.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
 		filtersControls.add(new JLabel("Filters: "));
 		filtersControls.add(filters);
+		filters.setEnabled(false);
 		filters.setRows(3);
 
 		// --------- parent toolbar and main window --------
