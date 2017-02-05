@@ -201,7 +201,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab, IHttpLi
 	}
 
 	private ResultSet getMsgField(String field, Integer id) throws SQLException {
-		return conn.createStatement().executeQuery(
-				"SELECT " + field + " FROM messages WHERE id = " + id);
+		PreparedStatement ps = conn.prepareStatement("SELECT " + field + " FROM messages WHERE id = ?");
+		ps.setInt(1, id);
+		return ps.executeQuery();
 	}
 }
