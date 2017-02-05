@@ -94,6 +94,10 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 		JTabbedPane tabs = new JTabbedPane();
 		table.getSelectionModel().addListSelectionListener(this);
+		table.addMouseListener(new MouseAdapter() {
+			public void mousePressed (MouseEvent e) { if (e.isPopupTrigger()) showTablePopup(e); }
+			public void mouseReleased(MouseEvent e) { if (e.isPopupTrigger()) showTablePopup(e); }
+		});
 		splitPane.setTopComponent(new JScrollPane(table));
 		splitPane.setBottomComponent(tabs);
 
@@ -142,6 +146,68 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 
 	@Override
 	public byte[] getResponse() { return getSelectedMsgBytes("response"); }
+
+	private void showTablePopup(MouseEvent e) {
+		JPopupMenu pm = new JPopupMenu();
+		final int selectedColumn = table.getSelectedColumn();
+		final int selectedRow = table.getSelectedRow();
+		if (selectedRow == -1) return;
+		if (selectedColumn > 0) {
+			String columnName = COLUMNS[selectedColumn];
+			JMenuItem miFilter = new JMenuItem("Show rows with identical " + columnName + " only");
+			miFilter.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent event) {
+					applyFilter(selectedColumn, selectedRow, false);
+				}
+			});
+			pm.add(miFilter);
+			JMenuItem miAntiFilter = new JMenuItem("Hide rows with identical " + columnName);
+			miAntiFilter.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent event) {
+					applyFilter(selectedColumn, selectedRow, true);
+				}
+			});
+			pm.add(miAntiFilter);
+		}
+		if (pm.getComponentCount() == 0) return;
+		pm.show(e.getComponent(), e.getX(), e.getY());
+	}
+
+	private void applyFilter(int selectedColumn, int selectedRow, boolean invert) {
+		StringBuilder sb = new StringBuilder(filters.getText());
+		if (sb.length() > 0) sb.append("\nAND ");
+		Object value = table.getValueAt(selectedRow, selectedColumn);
+		try {
+			switch (selectedColumn) {
+				case 1: addEquals(value, sb, invert, "host"); break;
+				case 2: addEquals(value, sb, invert, "method"); break;
+				case 3: sb.append(invert ? "url NOT LIKE '%" : "url LIKE '%")
+						.append(escapeSQL(value)).append('\''); break;
+				case 4: addEquals(value, sb, invert, "status_code"); break;
+				case 5: addEquals(value, sb, invert, "LENGTH(response)"); break;
+				case 6: addEquals(value, sb, invert, "mime_type"); break;
+				case 7: addEquals(getMsgInt("tool", (Integer)table.getValueAt(selectedRow, 0)),
+								sb, invert, "tool"); break;
+			}
+			filters.setText(sb.toString());
+			refreshTable();
+		} catch (SQLException e) {
+			reportError(e, "Couldn't apply filter");
+		}
+	}
+
+	private static void addEquals(Object value, StringBuilder sb, boolean invert, String field) {
+		sb.append(field).append(invert ? " != " : " = ");
+		if (value instanceof String) {
+			sb.append('\'').append(escapeSQL(value)).append('\'');
+		} else {
+			sb.append(value.toString());
+		}
+	}
+
+	private static String escapeSQL(Object value) {
+		return ((String)value).replace("\\", "\\\\").replace("'", "\\'");
+	}
 
 	private Integer getSelectedId() {
 		int selectedRow = table.getSelectedRow();
