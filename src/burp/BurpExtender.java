@@ -197,6 +197,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		lbDbFile.setText(dbFile);
 	}
 
+	public final static String[] COLUMNS = {"#", "Host", "Method", "URL", "Status", "Length", "MIME type"};
+
 	void refreshTable() throws SQLException {
 		ArrayList<Integer> idList = new ArrayList<>();
 		String f = filters.getText();
@@ -205,15 +207,14 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			while (ids.next()) idList.add(ids.getInt(1));
 		}
 		idList.trimToSize();
-		String[] columns = {"#", "Host", "Method", "URL", "Status", "Length", "MIME type"};
 
 		table.setModel(new AbstractTableModel() {
 			@Override public int getRowCount() { return idList.size(); }
-			@Override public int getColumnCount() { return columns.length; }
+			@Override public int getColumnCount() { return COLUMNS.length; }
 
 			@Override
 			public String getColumnName(int column) {
-				return columns[column];
+				return COLUMNS[column];
 			}
 
 			@Override
