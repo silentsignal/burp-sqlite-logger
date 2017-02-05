@@ -197,7 +197,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		lbDbFile.setText(dbFile);
 	}
 
-	public final static String[] COLUMNS = {"#", "Host", "Method", "URL", "Status", "Length", "MIME type"};
+	public final static String[] COLUMNS = {"#", "Host", "Method", "URL", "Status",
+		"Length", "MIME type", "Tool"};
 
 	void refreshTable() throws SQLException {
 		ArrayList<Integer> idList = new ArrayList<>();
@@ -229,6 +230,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 						case 4: return getMsgInt("status_code", id);
 						case 5: return getMsgInt("LENGTH(response)", id);
 						case 6: return getMsgString("mime_type", id);
+						case 7: return callbacks.getToolName((Integer)getMsgInt("tool", id));
 					}
 				} catch (SQLException e) {
 					// reaches return below
