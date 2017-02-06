@@ -102,6 +102,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			public void mousePressed (MouseEvent e) { if (e.isPopupTrigger()) showTablePopup(e); }
 			public void mouseReleased(MouseEvent e) { if (e.isPopupTrigger()) showTablePopup(e); }
 		});
+		table.setAutoCreateRowSorter(true);
 		splitPane.setTopComponent(new JScrollPane(table));
 		splitPane.setBottomComponent(tabs);
 
@@ -317,6 +318,12 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 					// reaches return below
 				}
 				return "";
+			}
+
+			@Override
+			public Class<?> getColumnClass(int columnIndex) {
+				return columnIndex == 0 || columnIndex == 4 ||
+					columnIndex == 5 ? Integer.class : String.class;
 			}
 		});
 	}
