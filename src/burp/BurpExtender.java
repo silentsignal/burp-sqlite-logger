@@ -12,6 +12,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.table.*;
@@ -29,6 +31,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	private OutputStream stderr;
 	private IMessageEditor requestViewer, responseViewer;
 	private JButton btnRefresh = new JButton("Refresh table");
+	private final Map<String, PreparedStatement> fieldStmts = new HashMap<>();
 
 	@Override
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks) {
@@ -276,6 +279,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			"(id INTEGER PRIMARY KEY, " + fields + ")");
 		insertStmt = conn.prepareStatement("INSERT INTO messages " +
 			"(" + fields + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+		fieldStmts.clear();
 		lbDbFile.setText(dbFile);
 	}
 
@@ -363,7 +367,14 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	}
 
 	private ResultSet getMsgField(String field, Integer id) throws SQLException {
-		PreparedStatement ps = conn.prepareStatement("SELECT " + field + " FROM messages WHERE id = ?");
+		PreparedStatement ps;
+		synchronized (fieldStmts) {
+			ps = fieldStmts.get(field);
+			if (ps == null) {
+				ps = conn.prepareStatement("SELECT " + field + " FROM messages WHERE id = ?");
+				fieldStmts.put(field, ps);
+			}
+		}
 		ps.setInt(1, id);
 		return ps.executeQuery();
 	}
