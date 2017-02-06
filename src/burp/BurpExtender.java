@@ -151,6 +151,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	@Override
 	public byte[] getResponse() { return getSelectedMsgBytes("response"); }
 
+	private final static String[] REQ_RESP = {"request", "response"};
+
 	private void showTablePopup(MouseEvent e) {
 		JPopupMenu pm = new JPopupMenu();
 		final int selectedColumn = table.getSelectedColumn();
@@ -173,7 +175,16 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			});
 			pm.add(miAntiFilter);
 		}
-		if (pm.getComponentCount() == 0) return;
+		if (pm.getComponentCount() != 0) pm.addSeparator();
+		for (final String rr : REQ_RESP) {
+			JMenuItem mi = new JMenuItem("Send to Comparer (" + rr + ")");
+			mi.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent event) {
+					callbacks.sendToComparer(getSelectedMsgBytes(rr));
+				}
+			});
+			pm.add(mi);
+		}
 		pm.show(e.getComponent(), e.getX(), e.getY());
 	}
 
