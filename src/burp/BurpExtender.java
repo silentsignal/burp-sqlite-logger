@@ -246,7 +246,11 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	@Override
 	public void processHttpMessage(int toolFlag, boolean messageIsRequest, IHttpRequestResponse messageInfo)
 	{
-		if (messageIsRequest || insertStmt == null) return;
+		if (!messageIsRequest) insertRequestResponse(toolFlag, messageInfo, null);
+	}
+
+	private void insertRequestResponse(int toolFlag, IHttpRequestResponse messageInfo, String errorTitle) {
+		if (insertStmt == null) return;
 		IHttpService hs = messageInfo.getHttpService();
 		IRequestInfo req = helpers.analyzeRequest(messageInfo);
 		IResponseInfo resp = helpers.analyzeResponse(messageInfo.getResponse());
@@ -264,7 +268,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			insertStmt.setInt(   11, resp.getBodyOffset());
 			insertStmt.executeUpdate();
 		} catch (SQLException se) {
-			reportError(se, null);
+			reportError(se, errorTitle);
 		}
 	}
 
