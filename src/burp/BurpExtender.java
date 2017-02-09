@@ -56,6 +56,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 				File f = fc.getSelectedFile();
 				try {
 					connectToDatabase(f.getPath());
+					table.setEnabled(true);
 					refreshTable();
 					btnRefresh.setEnabled(true);
 					filters.setEnabled(true);
@@ -105,6 +106,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			public void mouseReleased(MouseEvent e) { if (e.isPopupTrigger()) showTablePopup(e); }
 		});
 		table.setAutoCreateRowSorter(true);
+		table.setEnabled(false);
 		splitPane.setTopComponent(new JScrollPane(table));
 		splitPane.setBottomComponent(tabs);
 
