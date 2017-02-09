@@ -219,32 +219,32 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		if (selectedRow == -1) return;
 		if (selectedColumn > 0) {
 			String columnName = COLUMNS[selectedColumn];
-			JMenuItem miFilter = new JMenuItem("Show rows with identical " + columnName + " only");
-			miFilter.addActionListener(new ActionListener() {
+			addToPopup(pm, "Show rows with identical " + columnName + " only", new ActionListener() {
 				public void actionPerformed(ActionEvent event) {
 					applyFilter(selectedColumn, selectedRow, false);
 				}
 			});
-			pm.add(miFilter);
-			JMenuItem miAntiFilter = new JMenuItem("Hide rows with identical " + columnName);
-			miAntiFilter.addActionListener(new ActionListener() {
+			addToPopup(pm, "Hide rows with identical " + columnName, new ActionListener() {
 				public void actionPerformed(ActionEvent event) {
 					applyFilter(selectedColumn, selectedRow, true);
 				}
 			});
-			pm.add(miAntiFilter);
 		}
 		if (pm.getComponentCount() != 0) pm.addSeparator();
 		for (final String rr : REQ_RESP) {
-			JMenuItem mi = new JMenuItem("Send to Comparer (" + rr + ")");
-			mi.addActionListener(new ActionListener() {
+			addToPopup(pm, "Send to Comparer (" + rr + ")", new ActionListener() {
 				public void actionPerformed(ActionEvent event) {
 					callbacks.sendToComparer(getSelectedMsgBytes(rr));
 				}
 			});
-			pm.add(mi);
 		}
 		pm.show(e.getComponent(), e.getX(), e.getY());
+	}
+
+	private static void addToPopup(JPopupMenu pm, String title, ActionListener al) {
+		final JMenuItem mi = new JMenuItem(title);
+		mi.addActionListener(al);
+		pm.add(mi);
 	}
 
 	private void applyFilter(int selectedColumn, int selectedRow, boolean invert) {
