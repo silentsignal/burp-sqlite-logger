@@ -21,7 +21,7 @@ import javax.swing.table.*;
 
 public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	   IHttpListener, IMessageEditorController, ListSelectionListener,
-	   IContextMenuFactory {
+	   IContextMenuFactory, IExtensionStateListener {
 
 	private IBurpExtenderCallbacks callbacks;
 	private IExtensionHelpers helpers;
@@ -41,6 +41,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		callbacks.addSuiteTab(this);
 		callbacks.registerHttpListener(this);
 		callbacks.registerContextMenuFactory(this);
+		callbacks.registerExtensionStateListener(this);
 		this.helpers = callbacks.getHelpers();
 		this.callbacks = callbacks;
 		this.stderr = callbacks.getStderr();
@@ -159,6 +160,11 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			});
 		}
 		return Collections.singletonList(i);
+	}
+
+	@Override
+	public void extensionUnloaded() {
+		disconnectDatabase();
 	}
 
 	private void disconnectDatabase() {
