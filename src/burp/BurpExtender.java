@@ -246,30 +246,32 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	@Override
 	public void processHttpMessage(int toolFlag, boolean messageIsRequest, IHttpRequestResponse messageInfo)
 	{
-		if (!messageIsRequest) insertRequestResponse(toolFlag, messageInfo, null);
+		if (!messageIsRequest) {
+			try {
+				insertRequestResponse(toolFlag, messageInfo);
+			} catch (SQLException se) {
+				reportError(se, null);
+			}
+		}
 	}
 
-	private void insertRequestResponse(int toolFlag, IHttpRequestResponse messageInfo, String errorTitle) {
+	private void insertRequestResponse(int toolFlag, IHttpRequestResponse messageInfo) throws SQLException {
 		if (insertStmt == null) return;
 		IHttpService hs = messageInfo.getHttpService();
 		IRequestInfo req = helpers.analyzeRequest(messageInfo);
 		IResponseInfo resp = helpers.analyzeResponse(messageInfo.getResponse());
-		try {
-			insertStmt.setInt(    1, toolFlag);
-			insertStmt.setBytes(  2, messageInfo.getRequest());
-			insertStmt.setBytes(  3, messageInfo.getResponse());
-			insertStmt.setString( 4, hs.getHost());
-			insertStmt.setInt(    5, hs.getPort());
-			insertStmt.setString( 6, hs.getProtocol());
-			insertStmt.setString( 7, req.getUrl().toString());
-			insertStmt.setString( 8, req.getMethod());
-			insertStmt.setShort(  9, resp.getStatusCode());
-			insertStmt.setString(10, resp.getStatedMimeType());
-			insertStmt.setInt(   11, resp.getBodyOffset());
-			insertStmt.executeUpdate();
-		} catch (SQLException se) {
-			reportError(se, errorTitle);
-		}
+		insertStmt.setInt(    1, toolFlag);
+		insertStmt.setBytes(  2, messageInfo.getRequest());
+		insertStmt.setBytes(  3, messageInfo.getResponse());
+		insertStmt.setString( 4, hs.getHost());
+		insertStmt.setInt(    5, hs.getPort());
+		insertStmt.setString( 6, hs.getProtocol());
+		insertStmt.setString( 7, req.getUrl().toString());
+		insertStmt.setString( 8, req.getMethod());
+		insertStmt.setShort(  9, resp.getStatusCode());
+		insertStmt.setString(10, resp.getStatedMimeType());
+		insertStmt.setInt(   11, resp.getBodyOffset());
+		insertStmt.executeUpdate();
 	}
 
 	void connectToDatabase(final String dbFile) throws IOException,
