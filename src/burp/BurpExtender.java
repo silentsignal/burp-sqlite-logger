@@ -161,6 +161,13 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		return Collections.singletonList(i);
 	}
 
+	private void disconnectDatabase() {
+		if (insertStmt != null) try { insertStmt.close(); } catch (SQLException e) {}
+		for (PreparedStatement ps : fieldStmts.values()) try { ps.close(); } catch (SQLException e) {}
+		fieldStmts.clear();
+		if (conn != null) try { conn.close(); } catch (SQLException e) {}
+	}
+
 	@Override
 	public void valueChanged(ListSelectionEvent e) {
 		requestViewer.setMessage(getRequest(), true);
@@ -318,7 +325,11 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 
 	void connectToDatabase(final String dbFile) throws IOException,
 			SQLException, ClassNotFoundException {
-		Class.forName("org.sqlite.JDBC");
+		if (conn == null) {
+			Class.forName("org.sqlite.JDBC");
+		} else {
+			disconnectDatabase();
+		}
 		conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile);
 		conn.setAutoCommit(true); // TODO commit after n messages?
 		String fields = "tool, request, response, host, port, protocol, url, " +
@@ -327,7 +338,6 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			"(id INTEGER PRIMARY KEY, " + fields + ")");
 		insertStmt = conn.prepareStatement("INSERT INTO messages " +
 			"(" + fields + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-		fieldStmts.clear();
 		lbDbFile.setText(dbFile);
 	}
 
