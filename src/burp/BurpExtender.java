@@ -55,9 +55,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 				if (fc.showSaveDialog(BurpExtender.this) != JFileChooser.APPROVE_OPTION) return;
 				File f = fc.getSelectedFile();
 				try {
-					boolean existed = f.exists();
 					connectToDatabase(f.getPath());
-					if (existed) refreshTable();
+					refreshTable();
 					btnRefresh.setEnabled(true);
 					filters.setEnabled(true);
 				} catch (Exception e) {
