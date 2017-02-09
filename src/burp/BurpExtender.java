@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 import javax.swing.*;
@@ -19,7 +20,8 @@ import javax.swing.event.*;
 import javax.swing.table.*;
 
 public class BurpExtender extends JPanel implements IBurpExtender, ITab,
-	   IHttpListener, IMessageEditorController, ListSelectionListener {
+	   IHttpListener, IMessageEditorController, ListSelectionListener,
+	   IContextMenuFactory {
 
 	private IBurpExtenderCallbacks callbacks;
 	private IExtensionHelpers helpers;
@@ -38,6 +40,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		callbacks.setExtensionName("SQLite logger");
 		callbacks.addSuiteTab(this);
 		callbacks.registerHttpListener(this);
+		callbacks.registerContextMenuFactory(this);
 		this.helpers = callbacks.getHelpers();
 		this.callbacks = callbacks;
 		this.stderr = callbacks.getStderr();
@@ -118,6 +121,44 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		setLayout(new BorderLayout());
 		add(toolbar, BorderLayout.NORTH);
 		add(splitPane, BorderLayout.CENTER);
+	}
+
+	@Override
+	public java.util.List<JMenuItem> createMenuItems(final IContextMenuInvocation invocation) {
+		final IHttpRequestResponse[] messages = invocation.getSelectedMessages();
+		if (messages == null || messages.length == 0) return null;
+		JMenuItem i = new JMenuItem("Import into SQLite logger");
+		if (insertStmt == null) {
+			i.setEnabled(false);
+		} else {
+			i.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent event) {
+					int toolFlag = invocation.getToolFlag();
+					try {
+						conn.setAutoCommit(false);
+						for (IHttpRequestResponse message : messages) {
+							insertRequestResponse(toolFlag, message);
+						}
+						conn.commit();
+					} catch (SQLException e) {
+						try {
+							conn.rollback();
+						} catch (SQLException ie) {
+							reportError(ie, null);
+						}
+						reportError(e, "Couldn't import selected messages");
+					} finally {
+						try {
+							conn.setAutoCommit(true);
+						} catch (SQLException ie) {
+							reportError(ie, null);
+						}
+					}
+				}
+			});
+		}
+		return Collections.singletonList(i);
 	}
 
 	@Override
