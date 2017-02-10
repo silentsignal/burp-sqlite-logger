@@ -218,7 +218,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		final int selectedRow = table.getSelectedRow();
 		if (selectedRow == -1) return;
 		if (selectedColumn > 0) {
-			String columnName = COLUMNS[selectedColumn];
+			String columnName = columns[selectedColumn].name;
 			addToPopup(pm, "Show rows with identical " + columnName + " only", new ActionListener() {
 				public void actionPerformed(ActionEvent event) {
 					applyFilter(selectedColumn, selectedRow, false);
@@ -347,8 +347,82 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		lbDbFile.setText(dbFile);
 	}
 
-	public final static String[] COLUMNS = {"#", "Host", "Method", "URL", "Status",
-		"Length", "MIME type", "Tool"};
+	public final Column[] columns;
+
+	public BurpExtender() {
+		// TODO add UI to add/remove columns
+		columns = new Column[] {
+			new IdColumn("#"),
+			new SqlStringColumn("Host", "host"),
+			new SqlStringColumn("Method", "method"),
+			new SqlPathColumn("URL", "url"),
+			new SqlIntegerColumn("Status", "status_code"),
+			new SqlIntegerColumn("Length", "LENGTH(response)"),
+			new SqlStringColumn("MIME type", "mime_type"),
+			new SqlToolColumn("Tool", "tool")
+		};
+	};
+
+	public abstract class Column {
+		public final String name;
+
+		public Column(String name) { this.name = name; }
+
+		public abstract Object getValue(Integer id) throws SQLException;
+		public abstract Class<?> getValueClass();
+	}
+
+	public class IdColumn extends Column {
+		public IdColumn(String name) { super(name); }
+
+		public Object getValue(Integer id) { return id; }
+		public Class<?> getValueClass() { return Integer.class; }
+	}
+
+	public abstract class SqlColumn extends Column {
+		protected final String field;
+
+		public SqlColumn(String name, String field) {
+			super(name);
+			this.field = field;
+		}
+	}
+
+	public class SqlStringColumn extends SqlColumn {
+		public SqlStringColumn(String name, String field) { super(name, field); }
+
+		public Object getValue(Integer id) throws SQLException {
+			return getMsgString(field, id);
+		}
+
+		public Class<?> getValueClass() { return String.class; }
+	}
+
+	public class SqlPathColumn extends SqlStringColumn {
+		public SqlPathColumn(String name, String field) { super(name, field); }
+
+		public Object getValue(Integer id) throws SQLException {
+			return getPathFromURL(getMsgString(field, id));
+		}
+	}
+
+	public class SqlToolColumn extends SqlStringColumn {
+		public SqlToolColumn(String name, String field) { super(name, field); }
+
+		public Object getValue(Integer id) throws SQLException {
+			return callbacks.getToolName((Integer)getMsgInt(name, id));
+		}
+	}
+
+	public class SqlIntegerColumn extends SqlColumn {
+		public SqlIntegerColumn(String name, String field) { super(name, field); }
+
+		public Object getValue(Integer id) throws SQLException {
+			return getMsgInt(field, id);
+		}
+
+		public Class<?> getValueClass() { return Integer.class; }
+	}
 
 	void refreshTable() throws SQLException {
 		ArrayList<Integer> idList = new ArrayList<>();
@@ -361,27 +435,13 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 
 		table.setModel(new AbstractTableModel() {
 			@Override public int getRowCount() { return idList.size(); }
-			@Override public int getColumnCount() { return COLUMNS.length; }
-
-			@Override
-			public String getColumnName(int column) {
-				return COLUMNS[column];
-			}
+			@Override public int getColumnCount() { return columns.length; }
+			@Override public String getColumnName(int column) { return columns[column].name; }
 
 			@Override
 			public Object getValueAt(int row, int column) {
 				try {
-					Integer id = idList.get(row);
-					switch (column) {
-						case 0: return id;
-						case 1: return getMsgString("host", id);
-						case 2: return getMsgString("method", id);
-						case 3: return getPathFromURL(getMsgString("url", id));
-						case 4: return getMsgInt("status_code", id);
-						case 5: return getMsgInt("LENGTH(response)", id);
-						case 6: return getMsgString("mime_type", id);
-						case 7: return callbacks.getToolName((Integer)getMsgInt("tool", id));
-					}
+					return columns[column].getValue(idList.get(row));
 				} catch (SQLException e) {
 					// reaches return below
 				}
@@ -390,8 +450,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 
 			@Override
 			public Class<?> getColumnClass(int columnIndex) {
-				return columnIndex == 0 || columnIndex == 4 ||
-					columnIndex == 5 ? Integer.class : String.class;
+				return columns[columnIndex].getValueClass();
 			}
 		});
 	}
