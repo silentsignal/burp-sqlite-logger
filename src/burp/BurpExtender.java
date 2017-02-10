@@ -217,16 +217,17 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		final int selectedColumn = table.getSelectedColumn();
 		final int selectedRow = table.getSelectedRow();
 		if (selectedRow == -1) return;
-		if (selectedColumn > 0) {
-			String columnName = columns[selectedColumn].name;
+		Column c = columns[table.convertColumnIndexToModel(selectedColumn)];
+		if (c.isFilterable()) {
+			String columnName = c.name;
 			addToPopup(pm, "Show rows with identical " + columnName + " only", new ActionListener() {
 				public void actionPerformed(ActionEvent event) {
-					applyFilter(selectedColumn, selectedRow, false);
+					c.applyFilter(selectedColumn, selectedRow, false);
 				}
 			});
 			addToPopup(pm, "Hide rows with identical " + columnName, new ActionListener() {
 				public void actionPerformed(ActionEvent event) {
-					applyFilter(selectedColumn, selectedRow, true);
+					c.applyFilter(selectedColumn, selectedRow, true);
 				}
 			});
 		}
@@ -247,31 +248,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		pm.add(mi);
 	}
 
-	private void applyFilter(int selectedColumn, int selectedRow, boolean invert) {
-		StringBuilder sb = new StringBuilder(filters.getText());
-		if (sb.length() > 0) sb.append("\nAND ");
-		Object value = table.getValueAt(selectedRow, selectedColumn);
-		try {
-			switch (selectedColumn) {
-				case 1: addEquals(value, sb, invert, "host"); break;
-				case 2: addEquals(value, sb, invert, "method"); break;
-				case 3: sb.append(invert ? "url NOT LIKE '%" : "url LIKE '%")
-						.append(escapeSQL(value)).append('\''); break;
-				case 4: addEquals(value, sb, invert, "status_code"); break;
-				case 5: addEquals(value, sb, invert, "LENGTH(response)"); break;
-				case 6: addEquals(value, sb, invert, "mime_type"); break;
-				case 7: addEquals(getMsgInt("tool", (Integer)table.getValueAt(selectedRow, 0)),
-								sb, invert, "tool"); break;
-			}
-			filters.setText(sb.toString());
-			refreshTable();
-		} catch (SQLException e) {
-			reportError(e, "Couldn't apply filter");
-		}
-	}
-
-	private static void addEquals(Object value, StringBuilder sb, boolean invert, String field) {
-		sb.append(field).append(invert ? " != " : " = ");
+	private static void addEquals(Object value, StringBuilder sb, boolean invert) {
+		sb.append(invert ? " != " : " = ");
 		if (value instanceof String) {
 			sb.append('\'').append(escapeSQL(value)).append('\'');
 		} else {
@@ -368,12 +346,35 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 
 		public Column(String name) { this.name = name; }
 
+		public boolean isFilterable() { return true; }
+
+		public void applyFilter(int selectedColumn, int selectedRow, boolean invert) {
+			StringBuilder sb = new StringBuilder(filters.getText());
+			if (sb.length() > 0) sb.append("\nAND ");
+			Object value = table.getValueAt(selectedRow, selectedColumn);
+			try {
+				addFilterOp(value, sb, invert, selectedRow);
+				filters.setText(sb.toString());
+				refreshTable();
+			} catch (SQLException e) {
+				reportError(e, "Couldn't apply filter");
+			}
+		}
+
+		protected abstract void addFilterOp(Object value, StringBuilder sb,
+				boolean invert, int selectedRow) throws SQLException;
 		public abstract Object getValue(Integer id) throws SQLException;
 		public abstract Class<?> getValueClass();
 	}
 
 	public class IdColumn extends Column {
 		public IdColumn(String name) { super(name); }
+
+		public boolean isFilterable() { return false; }
+		protected void addFilterOp(Object value, StringBuilder sb,
+				boolean invert, int selectedRow) {
+			throw new UnsupportedOperationException("ID cannot be filtered");
+		}
 
 		public Object getValue(Integer id) { return id; }
 		public Class<?> getValueClass() { return Integer.class; }
@@ -386,15 +387,29 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			super(name);
 			this.field = field;
 		}
+
+		protected void addFilterOp(Object value, StringBuilder sb,
+				boolean invert, int selectedRow) throws SQLException {
+			sb.append(field);
+			addEquals(value, sb, invert);
+		}
+
+		protected String getMsgString(Integer id) throws SQLException {
+			try (ResultSet rs = getMsgField(field, id)) {
+				return rs.next() ? rs.getString(1) : "";
+			}
+		}
+
+		protected Object getMsgInt(Integer id) throws SQLException {
+			try (ResultSet rs = getMsgField(field, id)) {
+				return rs.next() ? rs.getInt(1) : "";
+			}
+		}
 	}
 
 	public class SqlStringColumn extends SqlColumn {
 		public SqlStringColumn(String name, String field) { super(name, field); }
-
-		public Object getValue(Integer id) throws SQLException {
-			return getMsgString(field, id);
-		}
-
+		public Object getValue(Integer id) throws SQLException { return getMsgString(id); }
 		public Class<?> getValueClass() { return String.class; }
 	}
 
@@ -402,7 +417,13 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		public SqlPathColumn(String name, String field) { super(name, field); }
 
 		public Object getValue(Integer id) throws SQLException {
-			return getPathFromURL(getMsgString(field, id));
+			return getPathFromURL(getMsgString(id));
+		}
+
+		protected void addFilterOp(Object value, StringBuilder sb,
+				boolean invert, int selectedRow) {
+			sb.append(field).append(invert ? " NOT LIKE '%" : " LIKE '%")
+				.append(escapeSQL(value)).append('\'');
 		}
 	}
 
@@ -410,17 +431,19 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 		public SqlToolColumn(String name, String field) { super(name, field); }
 
 		public Object getValue(Integer id) throws SQLException {
-			return callbacks.getToolName((Integer)getMsgInt(name, id));
+			return callbacks.getToolName((Integer)getMsgInt(id));
+		}
+
+		protected void addFilterOp(Object value, StringBuilder sb,
+				boolean invert, int selectedRow) throws SQLException {
+			addEquals(getMsgInt((Integer)table.getValueAt(selectedRow, 0)),
+					sb, invert);
 		}
 	}
 
 	public class SqlIntegerColumn extends SqlColumn {
 		public SqlIntegerColumn(String name, String field) { super(name, field); }
-
-		public Object getValue(Integer id) throws SQLException {
-			return getMsgInt(field, id);
-		}
-
+		public Object getValue(Integer id) throws SQLException { return getMsgInt(id); }
 		public Class<?> getValueClass() { return Integer.class; }
 	}
 
@@ -461,18 +484,6 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 			return url.getPath();
 		} catch (MalformedURLException e) {
 			return value;
-		}
-	}
-
-	private String getMsgString(String field, Integer id) throws SQLException {
-		try (ResultSet rs = getMsgField(field, id)) {
-			return rs.next() ? rs.getString(1) : "";
-		}
-	}
-
-	private Object getMsgInt(String field, Integer id) throws SQLException {
-		try (ResultSet rs = getMsgField(field, id)) {
-			return rs.next() ? rs.getInt(1) : "";
 		}
 	}
 
