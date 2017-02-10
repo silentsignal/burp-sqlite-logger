@@ -264,7 +264,7 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 	private Integer getSelectedId() {
 		int selectedRow = table.getSelectedRow();
 		if (selectedRow == -1) return null;
-		return (Integer)table.getValueAt(selectedRow, 0);
+		return (Integer)table.getValueAt(selectedRow, table.convertColumnIndexToView(0));
 	}
 
 	private void reportError(Throwable t, String title) {
@@ -436,8 +436,8 @@ public class BurpExtender extends JPanel implements IBurpExtender, ITab,
 
 		protected void addFilterOp(Object value, StringBuilder sb,
 				boolean invert, int selectedRow) throws SQLException {
-			addEquals(getMsgInt((Integer)table.getValueAt(selectedRow, 0)),
-					sb, invert);
+			addEquals(getMsgInt((Integer)table.getValueAt(selectedRow,
+						table.convertColumnIndexToView(0))), sb, invert);
 		}
 	}
 
